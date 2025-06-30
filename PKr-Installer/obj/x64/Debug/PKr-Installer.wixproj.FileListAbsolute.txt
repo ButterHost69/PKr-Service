@@ -1,6 +1,6 @@
+E:\Projects\PKr-Service\PKr-Installer\obj\x64\Debug\PKr-Installer.wixproj.CoreCompileInputs.cache
 E:\Projects\PKr-Service\PKr-Installer\bin\x64\Debug\en-US\PKr-Installer.msi
 E:\Projects\PKr-Service\PKr-Installer\bin\x64\Debug\en-US\PKr-Installer.wixpdb
-E:\Projects\PKr-Service\PKr-Installer\obj\x64\Debug\PKr-Installer.wixproj.CoreCompileInputs.cache
 E:\Projects\PKr-Service\PKr-Installer\obj\x64\Debug\en-US\PKr-Installer.msi
 E:\Projects\PKr-Service\PKr-Installer\obj\x64\Debug\en-US\PKr-Installer.wixpdb
 E:\Projects\PKr-Service\PKr-Installer\obj\x64\Debug\PKr-Installer.wixproj.BindTracking-en-US.txt
