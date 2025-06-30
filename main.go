@@ -2,11 +2,13 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -29,6 +31,80 @@ const CliRepoName = "PKr-Cli"
 
 
 type myService struct{}
+
+// Update .env File
+func setEnvValue(key, value, filepath string, service_logger *log.Logger) error {
+	data_bytes, err := os.ReadFile(filepath)
+	if err != nil {
+		return err
+	}
+	
+	consts := strings.Split(string(data_bytes), "\n")
+	updated := false
+
+	for i, c := range consts {
+		if strings.HasPrefix(c, key + "="){
+			consts[i] = key + "=" + value
+			updated = true
+		}
+	}
+
+	if !updated{
+		if len(consts) == 0 {
+			service_logger.Println(".env is Empty Inserting Key:", key)
+			consts[0] = key + "=" + value
+		}
+		service_logger.Println("When Updating .env for key:", key, " was not found")
+		service_logger.Println("Inserting Key and Value for the First Time: ", key)
+		consts = append(consts, key + "=" + value)
+	}
+
+	return os.WriteFile(filepath, []byte(strings.Join(consts, "\n")), 0644)
+}
+
+func getLoggedInUsername() (string, error) {
+	cmd := exec.Command("query", "user")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		return "", err
+	}
+
+	lines := strings.Split(out.String(), "\n")
+	if len(lines) <= 1 {
+		return "", nil
+	}
+
+	for _, line := range lines[1:] {
+		fields := strings.Fields(line)
+		if len(fields) > 1 && (strings.Contains(fields[1], "Active") || strings.Contains(fields[2], "Active")) {
+			return fields[0], nil
+		}
+	}
+
+	return "", nil
+}
+
+// FIXME: This is not a good way
+// Solution: 	Turn the service into a scheduled task that start on user logon
+// 				This takes the first user that is not default :)
+// 				Using scheduled task we can provide as notifications
+// 				Or ?? Store the config files in the program files
+// 				Problem: Multiple windows user - same pkr user :)
+func getUserFromUsersDir() (string, error) {
+	entries, err := os.ReadDir("C:\\Users")
+	if err != nil {
+		return "", err
+	}
+	for _, e := range entries {
+		name := e.Name()
+		if !strings.HasPrefix(name, ".") && name != "Public" && name != "Default" && name != "All Users" {
+			return name, nil // first valid one
+		}
+	}
+	return "", nil
+}
 
 func (m *myService) Execute(args []string, r <-chan svc.ChangeRequest, s chan<- svc.Status) (bool, uint32) {
 	const acceptCmds = svc.AcceptStop | svc.AcceptShutdown
@@ -74,7 +150,8 @@ func (m *myService) Execute(args []string, r <-chan svc.ChangeRequest, s chan<- 
 	service_logger.Println("Loaded Constants From .env File")
 
 	// Check and Fetch Base
-	curr_base_ver := os.Getenv("PKr-Base-Version")
+	// '-' doesnt work in godotenv.load
+	curr_base_ver := os.Getenv("PKr_Base_Version")
 	base_latest_tag, err := getLatestTag(RepoOwner, BaseRepoName)
 	if err != nil {
 		service_logger.Println("Error: Could Not Fetch Latest Tag for PKr-Base")
@@ -83,13 +160,13 @@ func (m *myService) Execute(args []string, r <-chan svc.ChangeRequest, s chan<- 
 		return false, 1
 	}
 	if curr_base_ver != base_latest_tag {
-		service_logger.Printf("PKr-Base-Version is different from Latest [Curr: %v - Latest: %v]\n", curr_base_ver, base_latest_tag)
+		service_logger.Printf("PKr_Base_Version is different from Latest [Curr: %v - Latest: %v]\n", curr_base_ver, base_latest_tag)
 		service_logger.Println("Fetching Latest Base Version")
 		
 		service_logger.Println("Latest Base Version - ", base_latest_tag)
 		service_logger.Println("Downloading Latest Base Vesion", base_latest_tag)
 
-		err = downloadExeFromTag(RepoOwner, BaseRepoName, base_latest_tag, PKrPath)
+		err = downloadExeFromTag(RepoOwner, BaseRepoName, base_latest_tag, PKrPath + BaseRepoName + ".exe")
 		if err != nil {
 			service_logger.Println("Error: Downloading Latest Version of Base: ", base_latest_tag)
 			service_logger.Println("Error: ", err)
@@ -97,10 +174,24 @@ func (m *myService) Execute(args []string, r <-chan svc.ChangeRequest, s chan<- 
 			s <- svc.Status{State: svc.Stopped}
 			return false, 1
 		}
+
+		// Update .env
+		// '-' doesnt work in godotenv.load
+		err = setEnvValue("PKr_Base_Version", base_latest_tag, PKrPath + ".env", service_logger)
+		if err != nil {
+			service_logger.Println("Error: Updating .env file to reflect latest base tag: ", base_latest_tag)
+			service_logger.Println("Error: ", err)
+
+			s <- svc.Status{State: svc.Stopped}
+			return false, 1
+		}
+
+		service_logger.Println("PKr-Base Updated to Version: " + base_latest_tag)
 	}
 
 	// Check and Fetch Cli
-	curr_cli_ver := os.Getenv("PKr-Cli-Version")
+	// '-' doesnt work in godotenv.load
+	curr_cli_ver := os.Getenv("PKr_Cli_Version")
 	cli_latest_tag, err := getLatestTag(RepoOwner, CliRepoName)
 	if err != nil {
 		service_logger.Println("Error: Could Not Fetch Latest Tag for PKr-Cli")
@@ -109,13 +200,13 @@ func (m *myService) Execute(args []string, r <-chan svc.ChangeRequest, s chan<- 
 		return false, 1
 	}
 	if curr_cli_ver != cli_latest_tag{
-		service_logger.Printf("PKr-Cli-Version is different from Latest [Curr: %v - Latest: %v]\n", curr_cli_ver, cli_latest_tag)
+		service_logger.Printf("PKr_Cli_Version is different from Latest [Curr: %v - Latest: %v]\n", curr_cli_ver, cli_latest_tag)
 		service_logger.Println("Fetching Latest Cli Version")
 		
 		service_logger.Println("Latest Cli Version - ", cli_latest_tag)
 		service_logger.Println("Downloading Latest Cli Vesion", cli_latest_tag)
 
-		err = downloadExeFromTag(RepoOwner, CliRepoName, cli_latest_tag, PKrPath)
+		err = downloadExeFromTag(RepoOwner, CliRepoName, cli_latest_tag, PKrPath + CliRepoName + ".exe")
 		if err != nil {
 			service_logger.Println("Error: Downloading Latest Version of Cli: ", cli_latest_tag)
 			service_logger.Println("Error: ", err)
@@ -123,10 +214,43 @@ func (m *myService) Execute(args []string, r <-chan svc.ChangeRequest, s chan<- 
 			s <- svc.Status{State: svc.Stopped}
 			return false, 1
 		}
+
+		// Update .env
+		// '-' doesnt work in godotenv.load
+		err = setEnvValue("PKr_Cli_Version", cli_latest_tag, PKrPath + ".env", service_logger)
+		if err != nil {
+			service_logger.Println("Error: Updating .env file to reflect latest cli	 tag: ", cli_latest_tag)
+			service_logger.Println("Error: ", err)
+
+			s <- svc.Status{State: svc.Stopped}
+			return false, 1
+		}
+
+		service_logger.Println("PKr-Cli Updated to Version: " + cli_latest_tag)
+		
 	}
 	
-	// Start Base
-	cmd := exec.Command(PKrPath + "PKr-Cli.exe")
+	
+	// Wait For the User to log in
+	time.Sleep(5 * time.Second)
+
+	// Configure and Start Base
+	username, err := getLoggedInUsername()
+	if err != nil || username == "" {
+		username, err = getUserFromUsersDir()
+		if err != nil || username == "" {
+			service_logger.Println("Error: Could not Fetch Currently logged in User")
+			service_logger.Println("Error: ", err)
+			s <- svc.Status{State: svc.Stopped}
+			return false, 1
+		}
+	}
+
+	appData := filepath.Join("C:\\Users", username, "AppData", "Roaming")
+
+	cmd := exec.Command(PKrPath + "PKr-Base.exe")
+	cmd.Env = append(os.Environ(), "APPDATA="+appData)
+	cmd.Start()
 
 	// Optional: Set output to the current terminal
 	cmd.Stdout = service_logger.Writer()
@@ -151,7 +275,7 @@ loop:
 	for {
 		select {
 		case <-ticker.C:
-			msg := fmt.Sprintf("Hello: %s\n", time.Now().Format(time.RFC1123))
+			msg := fmt.Sprintf("[%s] Running\n", time.Now().Format(time.RFC1123))
 			_, _ = f.WriteString(msg)
 		case c := <-r:
 			switch c.Cmd {

@@ -1,6 +1,4 @@
 BuiltPdbOutput	E:\Projects\PKr-Service\PKr-Installer\obj\x64\Debug\en-US\PKr-Installer.wixpdb
 BuiltTargetOutput	E:\Projects\PKr-Service\PKr-Installer\obj\x64\Debug\en-US\PKr-Installer.msi
-Input	PKr-Base.exe
-Input	PKr-Cli.exe
 Input	PKr-Service.exe
 Intermediate	E:\Projects\PKr-Service\PKr-Installer\obj\x64\Debug\en-US\#media1.cab

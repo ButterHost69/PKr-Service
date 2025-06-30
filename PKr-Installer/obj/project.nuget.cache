@@ -1,8 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "JffgiLG4h90=",
+  "dgSpecHash": "5QuNxLuav7s=",
   "success": true,
   "projectFilePath": "E:\\Projects\\PKr-Service\\PKr-Installer\\PKr-Installer.wixproj",
-  "expectedPackageFiles": [],
+  "expectedPackageFiles": [
+    "C:\\Users\\palas\\.nuget\\packages\\wixtoolset.ui.wixext\\6.0.1\\wixtoolset.ui.wixext.6.0.1.nupkg.sha512"
+  ],
   "logs": []
 }

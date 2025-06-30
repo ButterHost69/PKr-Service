@@ -1,15 +1,69 @@
 {
   "version": 3,
   "targets": {
-    "native,Version=v0.0": {},
-    "native,Version=v0.0/win": {},
-    "native,Version=v0.0/win-arm64": {},
-    "native,Version=v0.0/win-x64": {},
-    "native,Version=v0.0/win-x86": {}
+    "native,Version=v0.0": {
+      "WixToolset.UI.wixext/6.0.1": {
+        "type": "package",
+        "build": {
+          "build/WixToolset.UI.wixext.targets": {}
+        }
+      }
+    },
+    "native,Version=v0.0/win": {
+      "WixToolset.UI.wixext/6.0.1": {
+        "type": "package",
+        "build": {
+          "build/WixToolset.UI.wixext.targets": {}
+        }
+      }
+    },
+    "native,Version=v0.0/win-arm64": {
+      "WixToolset.UI.wixext/6.0.1": {
+        "type": "package",
+        "build": {
+          "build/WixToolset.UI.wixext.targets": {}
+        }
+      }
+    },
+    "native,Version=v0.0/win-x64": {
+      "WixToolset.UI.wixext/6.0.1": {
+        "type": "package",
+        "build": {
+          "build/WixToolset.UI.wixext.targets": {}
+        }
+      }
+    },
+    "native,Version=v0.0/win-x86": {
+      "WixToolset.UI.wixext/6.0.1": {
+        "type": "package",
+        "build": {
+          "build/WixToolset.UI.wixext.targets": {}
+        }
+      }
+    }
   },
-  "libraries": {},
+  "libraries": {
+    "WixToolset.UI.wixext/6.0.1": {
+      "sha512": "rUERwVUvM7A0pv3MfxrqHmDBz9QTdy7vNco1/IJ8KVcoxl7gMlCXNXPo/JSYXe7kl4jyLwY+enVZU742Jcj2qw==",
+      "type": "package",
+      "path": "wixtoolset.ui.wixext/6.0.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "OSMFEULA.txt",
+        "README.md",
+        "build/WixToolset.UI.wixext.targets",
+        "icon.png",
+        "wixext6/WixToolset.UI.wixext.dll",
+        "wixtoolset.ui.wixext.6.0.1.nupkg.sha512",
+        "wixtoolset.ui.wixext.nuspec"
+      ]
+    }
+  },
   "projectFileDependencyGroups": {
-    "native,Version=v0.0": []
+    "native,Version=v0.0": [
+      "WixToolset.UI.wixext >= 6.0.1"
+    ]
   },
   "packageFolders": {
     "C:\\Users\\palas\\.nuget\\packages\\": {}
@@ -47,7 +101,13 @@
     },
     "frameworks": {
       "native": {
-        "targetAlias": "native"
+        "targetAlias": "native",
+        "dependencies": {
+          "WixToolset.UI.wixext": {
+            "target": "Package",
+            "version": "[6.0.1, )"
+          }
+        }
       }
     },
     "runtimes": {
