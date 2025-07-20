@@ -2,21 +2,19 @@
 package main
 
 import (
-	"bytes"
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/gen2brain/beeep"
 	"github.com/joho/godotenv"
 )
 
-const PKrPath = "C:\\Program Files\\PKr\\"
-
-var cPKrPath = filepath.Join("C:", "Program Files", "PKr")
+// const PKrPath = "C:\\Program Files\\PKr\\"
+var (
+	PKrPath = os.Getenv("LOCALAPPDATA") + "\\PKr\\"
+)
 
 const ServiceLogger = "service.log"
 
@@ -54,29 +52,29 @@ func setEnvValue(key, value, filepath string, service_logger *log.Logger) error 
 	return os.WriteFile(filepath, []byte(strings.Join(consts, "\n")), 0644)
 }
 
-func getLoggedInUsername() (string, error) {
-	cmd := exec.Command("query", "user")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		return "", err
-	}
+// func getLoggedInUsername() (string, error) {
+// 	cmd := exec.Command("query", "user")
+// 	var out bytes.Buffer
+// 	cmd.Stdout = &out
+// 	err := cmd.Run()
+// 	if err != nil {
+// 		return "", err
+// 	}
 
-	lines := strings.Split(out.String(), "\n")
-	if len(lines) <= 1 {
-		return "", nil
-	}
+// 	lines := strings.Split(out.String(), "\n")
+// 	if len(lines) <= 1 {
+// 		return "", nil
+// 	}
 
-	for _, line := range lines[1:] {
-		fields := strings.Fields(line)
-		if len(fields) > 1 && (strings.Contains(fields[1], "Active") || strings.Contains(fields[2], "Active")) {
-			return fields[0], nil
-		}
-	}
+// 	for _, line := range lines[1:] {
+// 		fields := strings.Fields(line)
+// 		if len(fields) > 1 && (strings.Contains(fields[1], "Active") || strings.Contains(fields[2], "Active")) {
+// 			return fields[0], nil
+// 		}
+// 	}
 
-	return "", nil
-}
+// 	return "", nil
+// }
 
 // FIXME: This is not a good way
 // Solution:
@@ -114,7 +112,7 @@ func main() {
 
 	service_logger := log.New(f, "", log.Ldate|log.Ltime|log.Lshortfile)
 	service_logger.Println("Logger Started ...")
-	service_logger.Println("cPKR Path:", cPKrPath)
+	service_logger.Println("PKR Path:", PKrPath)
 
 	// Checking is .env Present
 	dotenv_f, err := os.OpenFile(PKrPath+".env", os.O_RDWR|os.O_CREATE, 0644)
@@ -192,7 +190,7 @@ func main() {
 		}
 
 		service_logger.Println("PKr-Base Updated to Version: " + base_latest_tag)
-		err = beeep.Notify("PKr-Service", "Cli Updated to: " + base_latest_tag, "")
+		err = beeep.Notify("PKr-Service", "PKr-Base Updated to: " + base_latest_tag, "")
 		if err != nil {
 			service_logger.Println("Error while displaying Push Notification:", err)
 		}
@@ -245,39 +243,18 @@ func main() {
 		}
 
 		service_logger.Println("PKr-Cli Updated to Version: " + cli_latest_tag)
-		err = beeep.Notify("PKr-Service", "Cli Updated to: " + cli_latest_tag, "")
+		err = beeep.Notify("PKr-Service", "PKr-Cli Updated to: " + cli_latest_tag, "")
 		if err != nil {
 			service_logger.Println("Error while displaying Push Notification:", err)
 		}
 
 	}
 
-	// Wait For the User to log in
-	time.Sleep(5 * time.Second)
+	
 
 	// Configure and Start Base
-	username, err := getLoggedInUsername()
-	if err != nil || username == "" {
-		username, err = getUserFromUsersDir()
-		if err != nil || username == "" {
-			service_logger.Println("Error: Could not Fetch Currently logged in User")
-			service_logger.Println("Error: ", err)
-
-			err = beeep.Notify("PKr-Service", "Failed to Start PKr-Service - Check Logs", "")
-			if err != nil {
-				service_logger.Println("Error while displaying Push Notification:", err)
-			}
-			return
-		}
-	}
-
-	// appData := filepath.Join("C:\\Users", username, "AppData", "Roaming")
-
-	// cmd := exec.Command(PKrPath + "PKr-Base.exe")
-	// cmd.Env = append(os.Environ(), "APPDATA="+appData)
-	// cmd.Start()
-
 	cmd := exec.Command(PKrPath + "PKr-Base.exe")
+	
 	// Optional: Set output to the current terminal
 	cmd.Stdout = service_logger.Writer()
 	cmd.Stderr = service_logger.Writer()
@@ -287,7 +264,7 @@ func main() {
 		service_logger.Println("Error: In Starting PKr-Base")
 		service_logger.Println("Error: ", err)
 
-		err = beeep.Notify("PKr-Service", "Failed to Start PKr-Service - Check Logs", "")
+		err = beeep.Notify("PKr-Service", "Failed to Start PKr-Base - Check Logs", "")
 		if err != nil {
 			service_logger.Println("Error while displaying Push Notification:", err)
 		}
