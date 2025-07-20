@@ -30,6 +30,11 @@ func setEnvValue(key, value, filepath string, service_logger *log.Logger) error 
 	}
 
 	consts := strings.Split(string(data_bytes), "\n")
+	if len(consts) == 0 {
+		service_logger.Println(".env is Empty Inserting Key:", key)
+		consts[0] = key + "=" + value
+	}
+	
 	updated := false
 
 	for i, c := range consts {
@@ -39,11 +44,7 @@ func setEnvValue(key, value, filepath string, service_logger *log.Logger) error 
 		}
 	}
 
-	if !updated {
-		if len(consts) == 0 {
-			service_logger.Println(".env is Empty Inserting Key:", key)
-			consts[0] = key + "=" + value
-		}
+	if !updated {	
 		service_logger.Println("When Updating .env for key:", key, " was not found")
 		service_logger.Println("Inserting Key and Value for the First Time: ", key)
 		consts = append(consts, key+"="+value)
@@ -52,51 +53,6 @@ func setEnvValue(key, value, filepath string, service_logger *log.Logger) error 
 	return os.WriteFile(filepath, []byte(strings.Join(consts, "\n")), 0644)
 }
 
-// func getLoggedInUsername() (string, error) {
-// 	cmd := exec.Command("query", "user")
-// 	var out bytes.Buffer
-// 	cmd.Stdout = &out
-// 	err := cmd.Run()
-// 	if err != nil {
-// 		return "", err
-// 	}
-
-// 	lines := strings.Split(out.String(), "\n")
-// 	if len(lines) <= 1 {
-// 		return "", nil
-// 	}
-
-// 	for _, line := range lines[1:] {
-// 		fields := strings.Fields(line)
-// 		if len(fields) > 1 && (strings.Contains(fields[1], "Active") || strings.Contains(fields[2], "Active")) {
-// 			return fields[0], nil
-// 		}
-// 	}
-
-// 	return "", nil
-// }
-
-// FIXME: This is not a good way
-// Solution:
-// Turn the service into a scheduled task that start on user logon
-//
-//	This takes the first user that is not default :)
-//	Using scheduled task we can provide as notifications
-//	Or ?? Store the config files in the program files
-//	Problem: Multiple windows user - same pkr user :)
-func getUserFromUsersDir() (string, error) {
-	entries, err := os.ReadDir("C:\\Users")
-	if err != nil {
-		return "", err
-	}
-	for _, e := range entries {
-		name := e.Name()
-		if !strings.HasPrefix(name, ".") && name != "Public" && name != "Default" && name != "All Users" {
-			return name, nil // first valid one
-		}
-	}
-	return "", nil
-}
 
 func main() {
 	// Make sure log directory exists
