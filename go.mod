@@ -8,7 +8,6 @@ require (
 	github.com/gen2brain/beeep v0.11.1
 	github.com/google/go-github/v60 v60.0.0
 	github.com/joho/godotenv v1.5.1
-	golang.org/x/sys v0.33.0
 )
 
 require (
@@ -22,4 +21,5 @@ require (
 	github.com/sergeymakinen/go-bmp v1.0.0 // indirect
 	github.com/sergeymakinen/go-ico v1.0.0-beta.0 // indirect
 	github.com/tadvi/systray v0.0.0-20190226123456-11a2b8fa57af // indirect
+	golang.org/x/sys v0.33.0 // indirect
 )

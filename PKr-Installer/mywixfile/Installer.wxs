@@ -1,0 +1,56 @@
+<?define name = "PKr Service Installer"?>
+<?define exe = "PKr-Service.exe"?>
+<?define version = "0.0.7"?>
+<?define publisher = "NemuCorp"?>
+<?define guid = "cadfe7d2-ad1d-44a4-8c54-d365156b93b8"?>
+
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+    <Package 
+        Name="$(var.name)" 
+        Manufacturer="$(var.publisher)" 
+        Version="$(var.version)"
+        UpgradeCode="$(var.guid)" 
+        Scope="perMachine"
+        InstallerVersion="500">
+
+       <Media Id="1" Cabinet="setup.cab" EmbedCab="yes" />
+       
+       <!-- Features to include all components -->
+       <Feature Id="InstallFeature" Title="Install Feature">
+           <ComponentRef Id="PKrServiceEXE" />
+           <ComponentRef Id="AddToPathPKrCli" />
+           <ComponentRef Id="RegistryEntries" />
+       </Feature>
+       
+       <StandardDirectory Id="ProgramFiles64Folder">
+           <Directory Id="INSTALLLOCATION" Name="PKr">
+               
+                <!-- Place PKr-Service in Program Files -->
+                <Component Id="PKrServiceEXE" DiskId="1" >
+                    <File Id="File0" Name="$(var.exe)"
+                         Source="$(var.exe)" />
+                </Component>
+
+                <!-- Features to include all components -->
+                <Component Id="RegistryEntries" Guid="a38e1228-1dee-47cb-a7d8-450ed9b01068">
+                    <RegistryValue Root="HKCU"
+                                   Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                                   Name="PKr-Service"
+                                   Value="[ProgramFiles64Folder]PKr\PKr-Service.exe"
+                                   Type="string" />
+                </Component>
+
+                <Component Id="AddToPathPKrCli" Guid="dcffe3c2-cd02-4fd9-8f31-af15a1b6899a">
+                    <Environment Id="PKrCliEnvPath" 
+                                Name="PATH" 
+                                Action="set" 
+                                Part="last" 
+                                Value="[LocalAppDataFolder]PKr\" 
+                                Permanent="yes" 
+                                System="yes" />
+                  </Component>
+
+           </Directory>
+       </StandardDirectory>
+   </Package>
+</Wix>

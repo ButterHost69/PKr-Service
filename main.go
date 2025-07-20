@@ -2,35 +2,25 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
 	"log"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
-	"time"
 
+	"github.com/gen2brain/beeep"
 	"github.com/joho/godotenv"
-	"golang.org/x/sys/windows/svc"
-	"golang.org/x/sys/windows/svc/debug"
 )
 
-const serviceName = "PKr-Service"
-// const BaseExePath = "C:\\Program Files\\PKr\\"
-// const CliExePath = "C:\\Program Files\\PKr\\"
-const PKrPath = "C:\\Program Files\\PKr\\"
+// const PKrPath = "C:\\Program Files\\PKr\\"
+var (
+	PKrPath = os.Getenv("LOCALAPPDATA") + "\\PKr\\"
+)
 
-var cPKrPath = filepath.Join("C:","Program Files", "PKr")
 const ServiceLogger = "service.log"
-
 
 const RepoOwner = "ButterHost69"
 const BaseRepoName = "PKr-Base"
 const CliRepoName = "PKr-Cli"
-
-
-type myService struct{}
 
 // Update .env File
 func setEnvValue(key, value, filepath string, service_logger *log.Logger) error {
@@ -38,114 +28,74 @@ func setEnvValue(key, value, filepath string, service_logger *log.Logger) error 
 	if err != nil {
 		return err
 	}
-	
+
 	consts := strings.Split(string(data_bytes), "\n")
+	if len(consts) == 0 {
+		service_logger.Println(".env is Empty Inserting Key:", key)
+		consts[0] = key + "=" + value
+	}
+	
 	updated := false
 
 	for i, c := range consts {
-		if strings.HasPrefix(c, key + "="){
+		if strings.HasPrefix(c, key+"=") {
 			consts[i] = key + "=" + value
 			updated = true
 		}
 	}
 
-	if !updated{
-		if len(consts) == 0 {
-			service_logger.Println(".env is Empty Inserting Key:", key)
-			consts[0] = key + "=" + value
-		}
+	if !updated {	
 		service_logger.Println("When Updating .env for key:", key, " was not found")
 		service_logger.Println("Inserting Key and Value for the First Time: ", key)
-		consts = append(consts, key + "=" + value)
+		consts = append(consts, key+"="+value)
 	}
 
 	return os.WriteFile(filepath, []byte(strings.Join(consts, "\n")), 0644)
 }
 
-func getLoggedInUsername() (string, error) {
-	cmd := exec.Command("query", "user")
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	err := cmd.Run()
-	if err != nil {
-		return "", err
-	}
 
-	lines := strings.Split(out.String(), "\n")
-	if len(lines) <= 1 {
-		return "", nil
-	}
-
-	for _, line := range lines[1:] {
-		fields := strings.Fields(line)
-		if len(fields) > 1 && (strings.Contains(fields[1], "Active") || strings.Contains(fields[2], "Active")) {
-			return fields[0], nil
-		}
-	}
-
-	return "", nil
-}
-
-// FIXME: This is not a good way
-// Solution: 	Turn the service into a scheduled task that start on user logon
-// 				This takes the first user that is not default :)
-// 				Using scheduled task we can provide as notifications
-// 				Or ?? Store the config files in the program files
-// 				Problem: Multiple windows user - same pkr user :)
-func getUserFromUsersDir() (string, error) {
-	entries, err := os.ReadDir("C:\\Users")
-	if err != nil {
-		return "", err
-	}
-	for _, e := range entries {
-		name := e.Name()
-		if !strings.HasPrefix(name, ".") && name != "Public" && name != "Default" && name != "All Users" {
-			return name, nil // first valid one
-		}
-	}
-	return "", nil
-}
-
-func (m *myService) Execute(args []string, r <-chan svc.ChangeRequest, s chan<- svc.Status) (bool, uint32) {
-	const acceptCmds = svc.AcceptStop | svc.AcceptShutdown
-	s <- svc.Status{State: svc.StartPending}
-
+func main() {
 	// Make sure log directory exists
 	_ = os.MkdirAll(PKrPath, 0755)
 
 	// Open log file
-	f, err := os.OpenFile(PKrPath + ServiceLogger, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(PKrPath+ServiceLogger, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
-		s <- svc.Status{State: svc.Stopped}
-		return false, 1
+		_ = beeep.Notify("PKr-Service", "Failed to Start PKr-Service:\n"+err.Error(), "")
+		return
 	}
 	defer f.Close()
 
 	service_logger := log.New(f, "", log.Ldate|log.Ltime|log.Lshortfile)
 	service_logger.Println("Logger Started ...")
-	service_logger.Println("cPKR Path:", cPKrPath)
+	service_logger.Println("PKR Path:", PKrPath)
 
 	// Checking is .env Present
 	dotenv_f, err := os.OpenFile(PKrPath+".env", os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
-	    service_logger.Println("Error: Could not Open from the .env file")
+		service_logger.Println("Error: Could not Open from the .env file")
 		service_logger.Println("Error:", err.Error())
 		service_logger.Println("Path: ", PKrPath)
-		s <- svc.Status{State: svc.Stopped}
-		return false, 1
+		err = beeep.Notify("PKr-Service", "Failed to Start PKr-Service - Check Logs", "")
+		if err != nil {
+			service_logger.Println("Error while displaying Push Notification:", err)
+		}
+		return
 	}
 	defer dotenv_f.Close()
 
-
 	// Open Latest File
 	err = godotenv.Load(PKrPath + ".env")
-    if err != nil {
+	if err != nil {
 		service_logger.Println("Error: Could not Load .env file using godotenv")
 		service_logger.Println("Error:", err.Error())
 		service_logger.Println("Path: ", PKrPath)
-		s <- svc.Status{State: svc.Stopped}
-		return false, 1
-    }
+		err = beeep.Notify("PKr-Service", "Failed to Start PKr-Service - Check Logs", "")
+		if err != nil {
+			service_logger.Println("Error while displaying Push Notification:", err)
+		}
+		return
+	}
 
 	service_logger.Println("Loaded Constants From .env File")
 
@@ -156,37 +106,50 @@ func (m *myService) Execute(args []string, r <-chan svc.ChangeRequest, s chan<- 
 	if err != nil {
 		service_logger.Println("Error: Could Not Fetch Latest Tag for PKr-Base")
 		service_logger.Println("Error: [Base]", err)
-		s <- svc.Status{State: svc.Stopped}
-		return false, 1
+		err = beeep.Notify("PKr-Service", "Failed to Start PKr-Service - Check Logs", "")
+		if err != nil {
+			service_logger.Println("Error while displaying Push Notification:", err)
+		}
+		return
 	}
 	if curr_base_ver != base_latest_tag {
 		service_logger.Printf("PKr_Base_Version is different from Latest [Curr: %v - Latest: %v]\n", curr_base_ver, base_latest_tag)
 		service_logger.Println("Fetching Latest Base Version")
-		
+
 		service_logger.Println("Latest Base Version - ", base_latest_tag)
 		service_logger.Println("Downloading Latest Base Vesion", base_latest_tag)
 
-		err = downloadExeFromTag(RepoOwner, BaseRepoName, base_latest_tag, PKrPath + BaseRepoName + ".exe")
+		err = downloadExeFromTag(RepoOwner, BaseRepoName, base_latest_tag, PKrPath+BaseRepoName+".exe")
 		if err != nil {
 			service_logger.Println("Error: Downloading Latest Version of Base: ", base_latest_tag)
 			service_logger.Println("Error: ", err)
 
-			s <- svc.Status{State: svc.Stopped}
-			return false, 1
+			err = beeep.Notify("PKr-Service", "Failed to Start PKr-Service - Check Logs", "")
+			if err != nil {
+				service_logger.Println("Error while displaying Push Notification:", err)
+			}
+			return
 		}
 
 		// Update .env
 		// '-' doesnt work in godotenv.load
-		err = setEnvValue("PKr_Base_Version", base_latest_tag, PKrPath + ".env", service_logger)
+		err = setEnvValue("PKr_Base_Version", base_latest_tag, PKrPath+".env", service_logger)
 		if err != nil {
 			service_logger.Println("Error: Updating .env file to reflect latest base tag: ", base_latest_tag)
 			service_logger.Println("Error: ", err)
 
-			s <- svc.Status{State: svc.Stopped}
-			return false, 1
+			err = beeep.Notify("PKr-Service", "Failed to Start PKr-Service - Check Logs", "")
+			if err != nil {
+				service_logger.Println("Error while displaying Push Notification:", err)
+			}
+			return
 		}
 
 		service_logger.Println("PKr-Base Updated to Version: " + base_latest_tag)
+		err = beeep.Notify("PKr-Service", "PKr-Base Updated to: " + base_latest_tag, "")
+		if err != nil {
+			service_logger.Println("Error while displaying Push Notification:", err)
+		}
 	}
 
 	// Check and Fetch Cli
@@ -196,62 +159,58 @@ func (m *myService) Execute(args []string, r <-chan svc.ChangeRequest, s chan<- 
 	if err != nil {
 		service_logger.Println("Error: Could Not Fetch Latest Tag for PKr-Cli")
 		service_logger.Println("Error: [Cli]", err)
-		s <- svc.Status{State: svc.Stopped}
-		return false, 1
+		err = beeep.Notify("PKr-Service", "Failed to Start PKr-Service - Check Logs", "")
+		if err != nil {
+			service_logger.Println("Error while displaying Push Notification:", err)
+		}
+		return
 	}
-	if curr_cli_ver != cli_latest_tag{
+	if curr_cli_ver != cli_latest_tag {
 		service_logger.Printf("PKr_Cli_Version is different from Latest [Curr: %v - Latest: %v]\n", curr_cli_ver, cli_latest_tag)
 		service_logger.Println("Fetching Latest Cli Version")
-		
+
 		service_logger.Println("Latest Cli Version - ", cli_latest_tag)
 		service_logger.Println("Downloading Latest Cli Vesion", cli_latest_tag)
 
-		err = downloadExeFromTag(RepoOwner, CliRepoName, cli_latest_tag, PKrPath + CliRepoName + ".exe")
+		err = downloadExeFromTag(RepoOwner, CliRepoName, cli_latest_tag, PKrPath+CliRepoName+".exe")
 		if err != nil {
 			service_logger.Println("Error: Downloading Latest Version of Cli: ", cli_latest_tag)
 			service_logger.Println("Error: ", err)
 
-			s <- svc.Status{State: svc.Stopped}
-			return false, 1
+			err = beeep.Notify("PKr-Service", "Failed to Start PKr-Service - Check Logs", "")
+			if err != nil {
+				service_logger.Println("Error while displaying Push Notification:", err)
+			}
+			return
 		}
 
 		// Update .env
 		// '-' doesnt work in godotenv.load
-		err = setEnvValue("PKr_Cli_Version", cli_latest_tag, PKrPath + ".env", service_logger)
+		err = setEnvValue("PKr_Cli_Version", cli_latest_tag, PKrPath+".env", service_logger)
 		if err != nil {
 			service_logger.Println("Error: Updating .env file to reflect latest cli	 tag: ", cli_latest_tag)
 			service_logger.Println("Error: ", err)
 
-			s <- svc.Status{State: svc.Stopped}
-			return false, 1
+			err = beeep.Notify("PKr-Service", "Failed to Start PKr-Service - Check Logs", "")
+			if err != nil {
+				service_logger.Println("Error while displaying Push Notification:", err)
+			}
+			return
 		}
 
 		service_logger.Println("PKr-Cli Updated to Version: " + cli_latest_tag)
-		
+		err = beeep.Notify("PKr-Service", "PKr-Cli Updated to: " + cli_latest_tag, "")
+		if err != nil {
+			service_logger.Println("Error while displaying Push Notification:", err)
+		}
+
 	}
+
 	
-	
-	// Wait For the User to log in
-	time.Sleep(5 * time.Second)
 
 	// Configure and Start Base
-	username, err := getLoggedInUsername()
-	if err != nil || username == "" {
-		username, err = getUserFromUsersDir()
-		if err != nil || username == "" {
-			service_logger.Println("Error: Could not Fetch Currently logged in User")
-			service_logger.Println("Error: ", err)
-			s <- svc.Status{State: svc.Stopped}
-			return false, 1
-		}
-	}
-
-	appData := filepath.Join("C:\\Users", username, "AppData", "Roaming")
-
 	cmd := exec.Command(PKrPath + "PKr-Base.exe")
-	cmd.Env = append(os.Environ(), "APPDATA="+appData)
-	cmd.Start()
-
+	
 	// Optional: Set output to the current terminal
 	cmd.Stdout = service_logger.Writer()
 	cmd.Stderr = service_logger.Writer()
@@ -260,53 +219,13 @@ func (m *myService) Execute(args []string, r <-chan svc.ChangeRequest, s chan<- 
 	if err != nil {
 		service_logger.Println("Error: In Starting PKr-Base")
 		service_logger.Println("Error: ", err)
-		s <- svc.Status{State: svc.Stopped}
-		return false, 1
+
+		err = beeep.Notify("PKr-Service", "Failed to Start PKr-Base - Check Logs", "")
+		if err != nil {
+			service_logger.Println("Error while displaying Push Notification:", err)
+		}
+		return
 	}
 
 	service_logger.Println("Latest PKr-Base Running...")
-
-	// Start service loop
-	s <- svc.Status{State: svc.Running, Accepts: acceptCmds}
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-loop:
-	for {
-		select {
-		case <-ticker.C:
-			msg := fmt.Sprintf("[%s] Running\n", time.Now().Format(time.RFC1123))
-			_, _ = f.WriteString(msg)
-		case c := <-r:
-			switch c.Cmd {
-			case svc.Stop, svc.Shutdown:
-				break loop
-			case svc.Interrogate:
-				s <- c.CurrentStatus
-			}
-		}
-	}
-
-	s <- svc.Status{State: svc.StopPending}
-	return false, 0
-}
-
-func runService(name string, isDebug bool) {
-	var err error
-	if isDebug {
-		err = debug.Run(name, &myService{})
-	} else {
-		err = svc.Run(name, &myService{})
-	}
-	if err != nil {
-		log.Fatalf("Service failed: %v", err)
-	}
-}
-
-func main() {
-	isService, err := svc.IsWindowsService()
-	if err != nil {
-		log.Fatalf("Error: %v", err)
-	}
-	runService(serviceName, !isService)
 }
