@@ -208,6 +208,8 @@ func main() {
 	cmd.Stdout = service_logger.Writer()
 	cmd.Stderr = service_logger.Writer()
 
+	service_logger.Println("Attempting to Launch PKr-Base...")
+	service_logger.Println("[Note] To confirm PKr-Base is Running Check PKr-Base Logs in the - LOCALAPPDATA/PKr/Logs/PKr-Base.log")
 	err = cmd.Run()
 	if err != nil {
 		service_logger.Println("Error: In Starting PKr-Base")
@@ -220,5 +222,4 @@ func main() {
 		return
 	}
 
-	service_logger.Println("Latest PKr-Base Running...")
 }
