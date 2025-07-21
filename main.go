@@ -1,4 +1,3 @@
-// my_service.go
 package main
 
 import (
@@ -11,12 +10,10 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// const PKrPath = "C:\\Program Files\\PKr\\"
-var (
-	PKrPath = os.Getenv("LOCALAPPDATA") + "\\PKr\\"
-)
+var PKrPath = os.Getenv("LOCALAPPDATA") + "\\PKr\\"
 
-const ServiceLogger = "service.log"
+const ServiceLogger = "Logs\\PKR-Service.log"
+const EnvFilePath = "Config\\.env"
 
 const RepoOwner = "ButterHost69"
 const BaseRepoName = "PKr-Base"
@@ -34,9 +31,8 @@ func setEnvValue(key, value, filepath string, service_logger *log.Logger) error 
 		service_logger.Println(".env is Empty Inserting Key:", key)
 		consts[0] = key + "=" + value
 	}
-	
-	updated := false
 
+	updated := false
 	for i, c := range consts {
 		if strings.HasPrefix(c, key+"=") {
 			consts[i] = key + "=" + value
@@ -44,7 +40,7 @@ func setEnvValue(key, value, filepath string, service_logger *log.Logger) error 
 		}
 	}
 
-	if !updated {	
+	if !updated {
 		service_logger.Println("When Updating .env for key:", key, " was not found")
 		service_logger.Println("Inserting Key and Value for the First Time: ", key)
 		consts = append(consts, key+"="+value)
@@ -52,7 +48,6 @@ func setEnvValue(key, value, filepath string, service_logger *log.Logger) error 
 
 	return os.WriteFile(filepath, []byte(strings.Join(consts, "\n")), 0644)
 }
-
 
 func main() {
 	// Make sure log directory exists
@@ -71,7 +66,7 @@ func main() {
 	service_logger.Println("PKR Path:", PKrPath)
 
 	// Checking is .env Present
-	dotenv_f, err := os.OpenFile(PKrPath+".env", os.O_RDWR|os.O_CREATE, 0644)
+	dotenv_f, err := os.OpenFile(PKrPath+EnvFilePath, os.O_RDWR|os.O_CREATE, 0644)
 	if err != nil {
 		service_logger.Println("Error: Could not Open from the .env file")
 		service_logger.Println("Error:", err.Error())
@@ -85,7 +80,7 @@ func main() {
 	defer dotenv_f.Close()
 
 	// Open Latest File
-	err = godotenv.Load(PKrPath + ".env")
+	err = godotenv.Load(PKrPath + EnvFilePath)
 	if err != nil {
 		service_logger.Println("Error: Could not Load .env file using godotenv")
 		service_logger.Println("Error:", err.Error())
@@ -133,7 +128,7 @@ func main() {
 
 		// Update .env
 		// '-' doesnt work in godotenv.load
-		err = setEnvValue("PKr_Base_Version", base_latest_tag, PKrPath+".env", service_logger)
+		err = setEnvValue("PKr_Base_Version", base_latest_tag, PKrPath+EnvFilePath, service_logger)
 		if err != nil {
 			service_logger.Println("Error: Updating .env file to reflect latest base tag: ", base_latest_tag)
 			service_logger.Println("Error: ", err)
@@ -146,7 +141,7 @@ func main() {
 		}
 
 		service_logger.Println("PKr-Base Updated to Version: " + base_latest_tag)
-		err = beeep.Notify("PKr-Service", "PKr-Base Updated to: " + base_latest_tag, "")
+		err = beeep.Notify("PKr-Service", "PKr-Base Updated to: "+base_latest_tag, "")
 		if err != nil {
 			service_logger.Println("Error while displaying Push Notification:", err)
 		}
@@ -186,7 +181,7 @@ func main() {
 
 		// Update .env
 		// '-' doesnt work in godotenv.load
-		err = setEnvValue("PKr_Cli_Version", cli_latest_tag, PKrPath+".env", service_logger)
+		err = setEnvValue("PKr_Cli_Version", cli_latest_tag, PKrPath+EnvFilePath, service_logger)
 		if err != nil {
 			service_logger.Println("Error: Updating .env file to reflect latest cli	 tag: ", cli_latest_tag)
 			service_logger.Println("Error: ", err)
@@ -199,18 +194,16 @@ func main() {
 		}
 
 		service_logger.Println("PKr-Cli Updated to Version: " + cli_latest_tag)
-		err = beeep.Notify("PKr-Service", "PKr-Cli Updated to: " + cli_latest_tag, "")
+		err = beeep.Notify("PKr-Service", "PKr-Cli Updated to: "+cli_latest_tag, "")
 		if err != nil {
 			service_logger.Println("Error while displaying Push Notification:", err)
 		}
 
 	}
 
-	
-
 	// Configure and Start Base
 	cmd := exec.Command(PKrPath + "PKr-Base.exe")
-	
+
 	// Optional: Set output to the current terminal
 	cmd.Stdout = service_logger.Writer()
 	cmd.Stderr = service_logger.Writer()
