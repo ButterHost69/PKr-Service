@@ -2,9 +2,11 @@ package main
 
 import (
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/gen2brain/beeep"
 	"github.com/joho/godotenv"
@@ -18,6 +20,12 @@ const EnvFilePath = "Config\\.env"
 const RepoOwner = "ButterHost69"
 const BaseRepoName = "PKr-Base"
 const CliRepoName = "PKr-Cli"
+
+func checkInternet() bool {
+	timeout := 30 * time.Second
+	_, err := net.DialTimeout("tcp", "8.8.8.8:53", timeout) // Google DNS
+	return err == nil
+}
 
 // Update .env File
 func setEnvValue(key, value, filepath string, service_logger *log.Logger) error {
@@ -49,6 +57,28 @@ func setEnvValue(key, value, filepath string, service_logger *log.Logger) error 
 	return os.WriteFile(filepath, []byte(strings.Join(consts, "\n")), 0644)
 }
 
+func startBase(service_logger *log.Logger) {
+	cmd := exec.Command(PKrPath + "PKr-Base.exe")
+
+	// Optional: Set output to the current terminal
+	cmd.Stdout = service_logger.Writer()
+	cmd.Stderr = service_logger.Writer()
+
+	service_logger.Println("Attempting to Launch PKr-Base...")
+	service_logger.Println("[Note] To confirm PKr-Base is Running Check PKr-Base Logs in the - LOCALAPPDATA/PKr/Logs/PKr-Base.log")
+	err := cmd.Run()
+	if err != nil {
+		service_logger.Println("Error: In Starting PKr-Base")
+		service_logger.Println("Error: ", err)
+
+		err = beeep.Notify("PKr-Service", "Failed to Start PKr-Base - Check Logs", "")
+		if err != nil {
+			service_logger.Println("Error while displaying Push Notification:", err)
+		}
+		return
+	}
+}
+
 func main() {
 	// Make sure log directory exists
 	_ = os.MkdirAll(PKrPath, 0755)
@@ -64,6 +94,15 @@ func main() {
 	service_logger := log.New(f, "", log.Ldate|log.Ltime|log.Lshortfile)
 	service_logger.Println("Logger Started ...")
 	service_logger.Println("PKR Path:", PKrPath)
+
+	// Checking if user is connected to internet
+	for {
+		is_internet_available := checkInternet()
+		if is_internet_available {
+			break
+		}
+		time.Sleep(10 * time.Minute)
+	}
 
 	// Checking is .env Present
 	dotenv_f, err := os.OpenFile(PKrPath+EnvFilePath, os.O_RDWR|os.O_CREATE, 0644)
@@ -105,7 +144,8 @@ func main() {
 		if err != nil {
 			service_logger.Println("Error while displaying Push Notification:", err)
 		}
-		return
+		// Ignore if we can't fetch latest tag
+		startBase(service_logger)
 	}
 	if curr_base_ver != base_latest_tag {
 		service_logger.Printf("PKr_Base_Version is different from Latest [Curr: %v - Latest: %v]\n", curr_base_ver, base_latest_tag)
@@ -123,7 +163,8 @@ func main() {
 			if err != nil {
 				service_logger.Println("Error while displaying Push Notification:", err)
 			}
-			return
+			// Ignore if we can't download latest Base
+			startBase(service_logger)
 		}
 
 		// Update .env
@@ -158,7 +199,8 @@ func main() {
 		if err != nil {
 			service_logger.Println("Error while displaying Push Notification:", err)
 		}
-		return
+		// Ignore if we can't fetch latest tag
+		startBase(service_logger)
 	}
 	if curr_cli_ver != cli_latest_tag {
 		service_logger.Printf("PKr_Cli_Version is different from Latest [Curr: %v - Latest: %v]\n", curr_cli_ver, cli_latest_tag)
@@ -176,7 +218,8 @@ func main() {
 			if err != nil {
 				service_logger.Println("Error while displaying Push Notification:", err)
 			}
-			return
+			// Ignore if we can't download latest Cli
+			startBase(service_logger)
 		}
 
 		// Update .env
@@ -198,28 +241,8 @@ func main() {
 		if err != nil {
 			service_logger.Println("Error while displaying Push Notification:", err)
 		}
-
 	}
 
 	// Configure and Start Base
-	cmd := exec.Command(PKrPath + "PKr-Base.exe")
-
-	// Optional: Set output to the current terminal
-	cmd.Stdout = service_logger.Writer()
-	cmd.Stderr = service_logger.Writer()
-
-	service_logger.Println("Attempting to Launch PKr-Base...")
-	service_logger.Println("[Note] To confirm PKr-Base is Running Check PKr-Base Logs in the - LOCALAPPDATA/PKr/Logs/PKr-Base.log")
-	err = cmd.Run()
-	if err != nil {
-		service_logger.Println("Error: In Starting PKr-Base")
-		service_logger.Println("Error: ", err)
-
-		err = beeep.Notify("PKr-Service", "Failed to Start PKr-Base - Check Logs", "")
-		if err != nil {
-			service_logger.Println("Error while displaying Push Notification:", err)
-		}
-		return
-	}
-
+	startBase(service_logger)
 }
