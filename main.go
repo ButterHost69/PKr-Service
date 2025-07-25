@@ -80,8 +80,9 @@ func startBase(service_logger *log.Logger) {
 }
 
 func main() {
-	// Make sure log directory exists
+	// Create Log & Config directory
 	_ = os.MkdirAll(PKrPath+"Logs", 0755)
+	_ = os.MkdirAll(PKrPath+"Config", 0755)
 
 	// Open log file
 	f, err := os.OpenFile(PKrPath+ServiceLogger, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
